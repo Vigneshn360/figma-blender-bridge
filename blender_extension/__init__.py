@@ -22,7 +22,7 @@ from mathutils import Matrix, Vector
 
 
 BRIDGE_PORT = 51982
-BRIDGE_VERSION = "0.6.0"
+BRIDGE_VERSION = "0.6.1"
 GITHUB_REPOSITORY = "Vigneshn360/figma-blender-bridge"
 GITHUB_LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPOSITORY}/releases/latest"
 COLLECTION_NAME = "Figma Bridge"
@@ -180,6 +180,33 @@ def _update_bevel(self: bpy.types.PropertyGroup, _context: bpy.types.Context) ->
             obj.data.bevel_depth = self.bevel
 
 
+def _group_identity(obj: bpy.types.Object) -> str:
+    for collection in obj.users_collection:
+        identity = collection.get(COLLECTION_PATH_KEY)
+        if identity:
+            return str(identity)
+    return ""
+
+
+def _update_group_z_offset(self: bpy.types.PropertyGroup, _context: bpy.types.Context) -> None:
+    group_indices: dict[str, int] = {}
+    used_indices: set[int] = set()
+    next_index = 0
+    for obj in _bridge_objects():
+        identity = _group_identity(obj) or f"object:{obj.get('figma_bridge_source_id', obj.name)}"
+        if identity not in group_indices:
+            stored_index = obj.get("figma_bridge_group_index")
+            candidate = int(stored_index) if stored_index is not None else next_index
+            while candidate in used_indices:
+                candidate += 1
+            group_indices[identity] = candidate
+            used_indices.add(candidate)
+            next_index = max(next_index, candidate + 1)
+        group_index = group_indices[identity]
+        obj["figma_bridge_group_index"] = group_index
+        obj.location.z = group_index * self.group_z_offset
+
+
 def _move_to_collection(obj: bpy.types.Object, collection: bpy.types.Collection) -> None:
     for current in list(obj.users_collection):
         current.objects.unlink(obj)
@@ -259,6 +286,7 @@ def _process_payload(payload: dict[str, Any]) -> int:
     collection = _ensure_collection()
     imported_count = 0
     deleted_roots: set[str] = set()
+    group_indices: dict[str, int] = {}
     origin_x = float(payload.get("bounds", {}).get("x", 0.0))
     origin_y = float(payload.get("bounds", {}).get("y", 0.0))
     with tempfile.TemporaryDirectory(prefix="figma_bridge_") as temp_dir:
@@ -280,6 +308,10 @@ def _process_payload(payload: dict[str, Any]) -> int:
                     _delete_previous(source_id)
             base_name = str(item.get("name") or f"Figma {index + 1}")
             target_collection = _ensure_collection_path(collection, item.get("collectionPath", []))
+            group_identity = str(target_collection.get(COLLECTION_PATH_KEY, target_collection.name))
+            if group_identity not in group_indices:
+                group_indices[group_identity] = len(group_indices)
+            group_index = group_indices[group_identity]
             for part, obj in enumerate(objects, start=1):
                 obj.name = base_name if len(objects) == 1 else f"{base_name} {part}"
                 if obj.data is not None:
@@ -288,6 +320,7 @@ def _process_payload(payload: dict[str, Any]) -> int:
                 obj["figma_bridge_source_name"] = base_name
                 obj["figma_bridge_root_id"] = str(item.get("rootId", source_id))
                 obj["figma_bridge_file_key"] = str(payload.get("fileKey", ""))
+                obj["figma_bridge_group_index"] = group_index
                 if obj.type == "CURVE":
                     obj.data.dimensions = "2D"
                     obj.data.extrude = settings.extrude
@@ -296,6 +329,8 @@ def _process_payload(payload: dict[str, Any]) -> int:
                 _move_to_collection(obj, target_collection)
                 imported_count += 1
             _fit_objects_to_bounds(objects, item, origin_x, origin_y, settings.scale)
+            for obj in objects:
+                obj.location.z = group_index * settings.group_z_offset
             _remove_empty_import_collections(import_collections)
 
     if settings.replace_existing:
@@ -373,6 +408,15 @@ class FIGMA_BRIDGE_Settings(bpy.types.PropertyGroup):
         soft_max=0.1,
         subtype="DISTANCE",
         update=_update_bevel,
+    )
+    group_z_offset: FloatProperty(
+        name="Group Z Offset",
+        description="Distance between distinct imported Figma groups on the Z axis",
+        default=0.0,
+        soft_min=-1.0,
+        soft_max=1.0,
+        subtype="DISTANCE",
+        update=_update_group_z_offset,
     )
     replace_existing: BoolProperty(name="Replace previous push", default=True)
 
@@ -562,6 +606,7 @@ class FIGMA_BRIDGE_PT_panel(bpy.types.Panel):
         layout.prop(settings, "scale")
         layout.prop(settings, "extrude")
         layout.prop(settings, "bevel")
+        layout.prop(settings, "group_z_offset")
         layout.prop(settings, "replace_existing")
         layout.separator()
         layout.operator(FIGMA_BRIDGE_OT_convert_all_to_mesh.bl_idname, icon="MESH_DATA")

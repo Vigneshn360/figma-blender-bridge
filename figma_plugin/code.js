@@ -1,5 +1,5 @@
 const ENDPOINT = "http://localhost:51982";
-const BRIDGE_VERSION = "0.6.0";
+const BRIDGE_VERSION = "0.6.1";
 
 figma.showUI(__html__, { width: 360, height: 310, themeColors: true });
 
