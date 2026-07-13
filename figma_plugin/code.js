@@ -1,5 +1,5 @@
 const ENDPOINT = "http://localhost:51982";
-const BRIDGE_VERSION = "0.6.2";
+const BRIDGE_VERSION = "0.6.3";
 const GITHUB_LATEST_RELEASE_API = "https://api.github.com/repos/Vigneshn360/figma-blender-bridge/releases/latest";
 let figmaUpdate = null;
 
