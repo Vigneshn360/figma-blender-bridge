@@ -24,6 +24,7 @@ Local release finalized on 13 July 2026.
 - The Blender panel checks public GitHub Releases and installs validated update packages.
 - Group Z Offset live-stacks distinct imported groups along the Z axis.
 - The Figma panel checks GitHub Releases and opens its packaged plugin update for download.
+- The Figma manifest uses Community Plugin ID `1658560186159240604`.
 
 ## Validation
 

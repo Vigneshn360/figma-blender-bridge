@@ -17,6 +17,8 @@ Push selected Figma layers into Blender 5.1+ as editable curve objects over a lo
 3. Select the `manifest.json` inside the `figma_plugin` folder.
 4. Run **Plugins → Development → Push to Blender**.
 
+The Figma Community Plugin ID is `1658560186159240604`. Community installations and future Community updates use this ID.
+
 ## Use it
 
 1. Keep Blender open with the receiver running.
