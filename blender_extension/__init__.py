@@ -22,7 +22,7 @@ from mathutils import Matrix, Vector
 
 
 BRIDGE_PORT = 51982
-BRIDGE_VERSION = "0.6.1"
+BRIDGE_VERSION = "0.6.2"
 GITHUB_REPOSITORY = "Vigneshn360/figma-blender-bridge"
 GITHUB_LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPOSITORY}/releases/latest"
 COLLECTION_NAME = "Figma Bridge"

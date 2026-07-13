@@ -1,10 +1,62 @@
 const ENDPOINT = "http://localhost:51982";
-const BRIDGE_VERSION = "0.6.1";
+const BRIDGE_VERSION = "0.6.2";
+const GITHUB_LATEST_RELEASE_API = "https://api.github.com/repos/Vigneshn360/figma-blender-bridge/releases/latest";
+let figmaUpdate = null;
 
-figma.showUI(__html__, { width: 360, height: 310, themeColors: true });
+figma.showUI(__html__, { width: 390, height: 390, themeColors: true });
 
 function postStatus(type, message, details) {
   figma.ui.postMessage({ type, message, details: details || "" });
+}
+
+function versionTuple(value) {
+  return String(value).replace(/^v/i, "").split(".").map(part => Number(part));
+}
+
+function isNewerVersion(candidate, current) {
+  const left = versionTuple(candidate);
+  const right = versionTuple(current);
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index++) {
+    const difference = (left[index] || 0) - (right[index] || 0);
+    if (difference !== 0) return difference > 0;
+  }
+  return false;
+}
+
+async function checkPluginUpdate() {
+  try {
+    figma.ui.postMessage({ type: "update-status", message: "Checking for Figma plugin updates…", available: false });
+    const response = await fetch(GITHUB_LATEST_RELEASE_API);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const release = await response.json();
+    const version = String(release.tag_name || "").replace(/^v/i, "");
+    const asset = (release.assets || []).find(item => /^figma_plugin-.*\.zip$/.test(item.name || ""));
+    if (version && isNewerVersion(version, BRIDGE_VERSION)) {
+      if (!asset) throw new Error(`Release ${version} has no Figma plugin ZIP`);
+      figmaUpdate = { version, url: asset.browser_download_url };
+      figma.ui.postMessage({
+        type: "update-status",
+        message: `Figma plugin ${version} is available`,
+        available: true,
+        version
+      });
+    } else {
+      figmaUpdate = null;
+      figma.ui.postMessage({
+        type: "update-status",
+        message: `Figma plugin ${BRIDGE_VERSION} is current`,
+        available: false
+      });
+    }
+  } catch (error) {
+    figmaUpdate = null;
+    figma.ui.postMessage({
+      type: "update-status",
+      message: `Update check failed: ${String(error)}`,
+      available: false
+    });
+  }
 }
 
 async function checkConnection() {
@@ -155,7 +207,10 @@ async function waitForImport(requestId) {
 figma.ui.onmessage = async (message) => {
   if (message.type === "check") await checkConnection();
   if (message.type === "push") await pushSelection(message.options || { outlineText: true });
+  if (message.type === "check-update") await checkPluginUpdate();
+  if (message.type === "download-update" && figmaUpdate) figma.openExternal(figmaUpdate.url);
   if (message.type === "close") figma.closePlugin();
 };
 
 checkConnection();
+checkPluginUpdate();

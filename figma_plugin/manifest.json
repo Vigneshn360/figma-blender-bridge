@@ -7,7 +7,7 @@
   "editorType": ["figma"],
   "documentAccess": "dynamic-page",
   "networkAccess": {
-    "allowedDomains": ["http://localhost:51982"],
-    "reasoning": "Sends selected vector artwork to the Blender extension running locally on the user's computer."
+    "allowedDomains": ["http://localhost:51982", "https://api.github.com"],
+    "reasoning": "Sends artwork to Blender locally and checks public GitHub releases for plugin updates."
   }
 }

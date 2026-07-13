@@ -3,6 +3,7 @@ const fs = require("fs");
 const vm = require("vm");
 
 const page = { id: "page", type: "PAGE", name: "UI Page", selection: [] };
+const uiMessages = [];
 const context = {
   __html__: "",
   console,
@@ -13,7 +14,8 @@ const context = {
     fileKey: "test",
     showUI() {},
     closePlugin() {},
-    ui: { postMessage() {}, onmessage: null }
+    openExternal() {},
+    ui: { postMessage(message) { uiMessages.push(message); }, onmessage: null }
   }
 };
 vm.createContext(context);
@@ -56,4 +58,22 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(atomicUnits[0].collectionPath))
 
 assert.strictEqual(context.hasSelectedAncestor(leaf, new Set([frame.id, leaf.id])), true);
 assert.strictEqual(context.hasSelectedAncestor(frame, new Set([frame.id, leaf.id])), false);
-console.log("Figma hierarchy tests passed");
+assert.strictEqual(context.isNewerVersion("0.6.2", "0.6.1"), true);
+assert.strictEqual(context.isNewerVersion("0.6.1", "0.6.2"), false);
+
+context.fetch = async () => ({
+  ok: true,
+  json: async () => ({
+    tag_name: "v0.7.0",
+    assets: [{ name: "figma_plugin-0.7.0.zip", browser_download_url: "https://example.test/update.zip" }]
+  })
+});
+context.checkPluginUpdate().then(() => {
+  const updateMessage = uiMessages.find(message => message.type === "update-status" && message.available);
+  assert.ok(updateMessage);
+  assert.strictEqual(updateMessage.version, "0.7.0");
+  console.log("Figma hierarchy and updater tests passed");
+}).catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
