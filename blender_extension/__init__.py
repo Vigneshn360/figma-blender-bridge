@@ -438,6 +438,17 @@ def _download_and_validate_update(release: dict[str, str]) -> Path:
     return destination
 
 
+def _extension_repo_module() -> str:
+    extension_path = Path(__file__).resolve()
+    for repo in bpy.context.preferences.extensions.repos:
+        try:
+            if extension_path.is_relative_to(Path(repo.directory).resolve()):
+                return repo.module
+        except (OSError, ValueError):
+            continue
+    return "user_default"
+
+
 class FIGMA_BRIDGE_OT_check_updates(bpy.types.Operator):
     bl_idname = "figma_bridge.check_updates"
     bl_label = "Check for Updates"
@@ -478,6 +489,7 @@ class FIGMA_BRIDGE_OT_install_update(bpy.types.Operator):
             filepath = _download_and_validate_update(_UPDATE_RELEASE)
             result = bpy.ops.extensions.package_install_files(
                 filepath=str(filepath),
+                repo=_extension_repo_module(),
                 enable_on_install=True,
                 overwrite=True,
             )
