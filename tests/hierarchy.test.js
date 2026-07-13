@@ -58,8 +58,8 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(atomicUnits[0].collectionPath))
 
 assert.strictEqual(context.hasSelectedAncestor(leaf, new Set([frame.id, leaf.id])), true);
 assert.strictEqual(context.hasSelectedAncestor(frame, new Set([frame.id, leaf.id])), false);
-assert.strictEqual(context.isNewerVersion("0.6.2", "0.6.1"), true);
-assert.strictEqual(context.isNewerVersion("0.6.1", "0.6.2"), false);
+assert.strictEqual(context.isNewerVersion("0.6.3", "0.6.2"), true);
+assert.strictEqual(context.isNewerVersion("0.6.2", "0.6.3"), false);
 
 context.fetch = async () => ({
   ok: true,

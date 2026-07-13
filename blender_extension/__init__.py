@@ -22,7 +22,7 @@ from mathutils import Matrix, Vector
 
 
 BRIDGE_PORT = 51982
-BRIDGE_VERSION = "0.6.2"
+BRIDGE_VERSION = "0.6.3"
 GITHUB_REPOSITORY = "Vigneshn360/figma-blender-bridge"
 GITHUB_LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPOSITORY}/releases/latest"
 COLLECTION_NAME = "Figma Bridge"
@@ -34,6 +34,7 @@ _RESULTS: dict[str, dict[str, Any]] = {}
 _LAST_STATUS = "Stopped"
 _UPDATE_STATUS = "Updates not checked"
 _UPDATE_RELEASE: dict[str, str] | None = None
+_PENDING_UPDATE: tuple[str, str, str] | None = None
 
 
 def _set_status(message: str) -> None:
@@ -493,6 +494,35 @@ def _extension_repo_module() -> str:
     return "user_default"
 
 
+def _install_pending_update() -> None:
+    """Install after the initiating operator has left Blender's RNA call stack.
+
+    Installing this package unregisters and replaces this module. In particular,
+    do not access extension globals or an Operator instance after the install call.
+    """
+    global _PENDING_UPDATE, _UPDATE_STATUS
+    pending = _PENDING_UPDATE
+    _PENDING_UPDATE = None
+    if pending is None:
+        return None
+    filepath, repo, version = pending
+    _UPDATE_STATUS = f"Installing version {version}; restart Blender when complete"
+    stop_server()
+    try:
+        bpy.ops.extensions.package_install_files(
+            filepath=filepath,
+            repo=repo,
+            enable_on_install=True,
+            overwrite=True,
+        )
+    except Exception as exc:
+        # A failed install leaves this module loaded, so recovery is safe here.
+        _UPDATE_STATUS = f"Update failed: {exc}"
+        traceback.print_exc()
+        start_server()
+    return None
+
+
 class FIGMA_BRIDGE_OT_check_updates(bpy.types.Operator):
     bl_idname = "figma_bridge.check_updates"
     bl_label = "Check for Updates"
@@ -523,24 +553,19 @@ class FIGMA_BRIDGE_OT_install_update(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context) -> bool:
-        return _UPDATE_RELEASE is not None
+        return _UPDATE_RELEASE is not None and _PENDING_UPDATE is None
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        global _UPDATE_STATUS
+        global _PENDING_UPDATE, _UPDATE_STATUS
         try:
             if _UPDATE_RELEASE is None:
                 raise RuntimeError("Check for updates first")
             filepath = _download_and_validate_update(_UPDATE_RELEASE)
-            result = bpy.ops.extensions.package_install_files(
-                filepath=str(filepath),
-                repo=_extension_repo_module(),
-                enable_on_install=True,
-                overwrite=True,
-            )
-            if "FINISHED" not in result:
-                raise RuntimeError("Blender did not install the downloaded package")
-            _UPDATE_STATUS = f"Version {_UPDATE_RELEASE['version']} installed; restart Blender"
+            version = _UPDATE_RELEASE["version"]
+            _PENDING_UPDATE = (str(filepath), _extension_repo_module(), version)
+            _UPDATE_STATUS = f"Version {version} downloaded; installation queued"
             self.report({"INFO"}, _UPDATE_STATUS)
+            bpy.app.timers.register(_install_pending_update, first_interval=0.25)
             return {"FINISHED"}
         except Exception as exc:
             _UPDATE_STATUS = f"Update failed: {exc}"

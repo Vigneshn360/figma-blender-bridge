@@ -1,12 +1,12 @@
-# Figma to Blender Bridge 0.6.2
+# Figma to Blender Bridge 0.6.3
 
-Local release finalized on 13 July 2026.
+Local release finalized on 14 July 2026.
 
 ## Included
 
 - `figma_plugin/` — Figma development plugin
-- `figma_blender_bridge-0.6.2.zip` — installable Blender extension
-- `figma_plugin-0.6.2.zip` — downloadable Figma development plugin update
+- `figma_blender_bridge-0.6.3.zip` — installable Blender extension
+- `figma_plugin-0.6.3.zip` — downloadable Figma development plugin update
 - `blender_extension/` — readable Blender extension source
 - `tests/` — hierarchy regression test
 - `README.md` — installation, usage, behavior, and limitations
@@ -21,7 +21,7 @@ Local release finalized on 13 July 2026.
 - Imported curves can be converted to meshes from the N-panel.
 - Material slots can be cleared from all imported objects.
 - Both panels display version information.
-- The Blender panel checks public GitHub Releases and installs validated update packages.
+- The Blender panel checks public GitHub Releases and safely defers installation of validated update packages until its operator has returned.
 - Group Z Offset live-stacks distinct imported groups along the Z axis.
 - The Figma panel checks GitHub Releases and opens its packaged plugin update for download.
 - The Figma manifest uses Community Plugin ID `1658560186159240604`.
@@ -30,6 +30,6 @@ Local release finalized on 13 July 2026.
 
 - JavaScript hierarchy regression test: passed
 - Blender extension Python compilation: passed
-- Blender extension archive manifest/version: verified as 0.6.2
+- Blender extension archive manifest/version: verified as 0.6.3
 
 Version 0.4.2 remains in the development folder as the pre-UI stable fallback.
