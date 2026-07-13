@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "figma_blender_bridge"
-version = "0.5.0"
+version = "0.6.0"
 name = "Figma to Blender Bridge"
 tagline = "Push Figma artwork into organized editable collections"
 maintainer = "Vignesh"
@@ -9,5 +9,5 @@ blender_version_min = "5.1.0"
 license = ["SPDX:GPL-3.0-or-later"]
 
 [permissions]
-network = "Listen on localhost for artwork sent by the companion Figma plugin"
-files = "Temporarily store SVG data while importing it into Blender"
+network = "Listen locally and check public GitHub releases for updates"
+files = "Temporarily store SVG imports and downloaded updates"

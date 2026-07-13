@@ -8,7 +8,10 @@ import queue
 import re
 import tempfile
 import threading
+import tomllib
 import traceback
+import urllib.request
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -19,7 +22,9 @@ from mathutils import Matrix, Vector
 
 
 BRIDGE_PORT = 51982
-BRIDGE_VERSION = "0.5.0"
+BRIDGE_VERSION = "0.6.0"
+GITHUB_REPOSITORY = "Vigneshn360/figma-blender-bridge"
+GITHUB_LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPOSITORY}/releases/latest"
 COLLECTION_NAME = "Figma Bridge"
 COLLECTION_PATH_KEY = "figma_bridge_collection_path"
 _SERVER: ThreadingHTTPServer | None = None
@@ -27,6 +32,8 @@ _SERVER_THREAD: threading.Thread | None = None
 _INBOX: queue.Queue[dict[str, Any]] = queue.Queue()
 _RESULTS: dict[str, dict[str, Any]] = {}
 _LAST_STATUS = "Stopped"
+_UPDATE_STATUS = "Updates not checked"
+_UPDATE_RELEASE: dict[str, str] | None = None
 
 
 def _set_status(message: str) -> None:
@@ -383,14 +390,106 @@ class FIGMA_BRIDGE_OT_toggle(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class FIGMA_BRIDGE_OT_open_update_folder(bpy.types.Operator):
-    bl_idname = "figma_bridge.open_update_folder"
-    bl_label = "Update Add-on…"
-    bl_description = "Open the installed extension folder for updating"
+def _version_tuple(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.strip().lstrip("vV").split("."))
+
+
+def _latest_update() -> dict[str, str] | None:
+    request = urllib.request.Request(
+        GITHUB_LATEST_RELEASE_API,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"FigmaBlenderBridge/{BRIDGE_VERSION}",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        release = json.loads(response.read().decode("utf-8"))
+    version = str(release.get("tag_name", "")).lstrip("vV")
+    if not version or _version_tuple(version) <= _version_tuple(BRIDGE_VERSION):
+        return None
+    for asset in release.get("assets", []):
+        name = str(asset.get("name", ""))
+        if name.startswith("figma_blender_bridge-") and name.endswith(".zip"):
+            return {
+                "version": version,
+                "name": name,
+                "url": str(asset.get("browser_download_url", "")),
+            }
+    raise RuntimeError(f"Release v{version} has no Blender extension ZIP")
+
+
+def _download_and_validate_update(release: dict[str, str]) -> Path:
+    destination = Path(tempfile.gettempdir()) / release["name"]
+    request = urllib.request.Request(
+        release["url"],
+        headers={
+            "Accept": "application/octet-stream",
+            "User-Agent": f"FigmaBlenderBridge/{BRIDGE_VERSION}",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        destination.write_bytes(response.read())
+    with zipfile.ZipFile(destination) as archive:
+        manifest = tomllib.loads(archive.read("blender_manifest.toml").decode("utf-8"))
+    if manifest.get("id") != "figma_blender_bridge":
+        raise RuntimeError("Downloaded package has the wrong extension ID")
+    if str(manifest.get("version")) != release["version"]:
+        raise RuntimeError("Downloaded package version does not match the GitHub release")
+    return destination
+
+
+class FIGMA_BRIDGE_OT_check_updates(bpy.types.Operator):
+    bl_idname = "figma_bridge.check_updates"
+    bl_label = "Check for Updates"
+    bl_description = "Check GitHub Releases for a newer bridge version"
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        bpy.ops.wm.path_open(filepath=str(Path(__file__).resolve().parent))
-        return {"FINISHED"}
+        global _UPDATE_RELEASE, _UPDATE_STATUS
+        try:
+            _UPDATE_RELEASE = _latest_update()
+            if _UPDATE_RELEASE:
+                _UPDATE_STATUS = f"Version {_UPDATE_RELEASE['version']} is available"
+                self.report({"INFO"}, _UPDATE_STATUS)
+            else:
+                _UPDATE_STATUS = f"Version {BRIDGE_VERSION} is current"
+                self.report({"INFO"}, "Figma Bridge is up to date")
+            return {"FINISHED"}
+        except Exception as exc:
+            _UPDATE_RELEASE = None
+            _UPDATE_STATUS = f"Update check failed: {exc}"
+            self.report({"ERROR"}, _UPDATE_STATUS)
+            return {"CANCELLED"}
+
+
+class FIGMA_BRIDGE_OT_install_update(bpy.types.Operator):
+    bl_idname = "figma_bridge.install_update"
+    bl_label = "Install Update"
+    bl_description = "Download and install the available GitHub release"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        return _UPDATE_RELEASE is not None
+
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        global _UPDATE_STATUS
+        try:
+            if _UPDATE_RELEASE is None:
+                raise RuntimeError("Check for updates first")
+            filepath = _download_and_validate_update(_UPDATE_RELEASE)
+            result = bpy.ops.extensions.package_install_files(
+                filepath=str(filepath),
+                enable_on_install=True,
+                overwrite=True,
+            )
+            if "FINISHED" not in result:
+                raise RuntimeError("Blender did not install the downloaded package")
+            _UPDATE_STATUS = f"Version {_UPDATE_RELEASE['version']} installed; restart Blender"
+            self.report({"INFO"}, _UPDATE_STATUS)
+            return {"FINISHED"}
+        except Exception as exc:
+            _UPDATE_STATUS = f"Update failed: {exc}"
+            self.report({"ERROR"}, _UPDATE_STATUS)
+            return {"CANCELLED"}
 
 
 class FIGMA_BRIDGE_OT_convert_all_to_mesh(bpy.types.Operator):
@@ -456,14 +555,23 @@ class FIGMA_BRIDGE_PT_panel(bpy.types.Panel):
         layout.operator(FIGMA_BRIDGE_OT_convert_all_to_mesh.bl_idname, icon="MESH_DATA")
         layout.operator(FIGMA_BRIDGE_OT_remove_all_materials.bl_idname, icon="MATERIAL")
         layout.separator()
-        layout.operator(FIGMA_BRIDGE_OT_open_update_folder.bl_idname, icon="FILE_FOLDER")
+        layout.label(text=_UPDATE_STATUS, icon="INFO")
+        row = layout.row(align=True)
+        row.operator(FIGMA_BRIDGE_OT_check_updates.bl_idname, icon="FILE_REFRESH")
+        if _UPDATE_RELEASE:
+            row.operator(
+                FIGMA_BRIDGE_OT_install_update.bl_idname,
+                text=f"Install {_UPDATE_RELEASE['version']}",
+                icon="IMPORT",
+            )
         layout.label(text=f"Version {BRIDGE_VERSION}  •  Port {BRIDGE_PORT}")
 
 
 CLASSES = (
     FIGMA_BRIDGE_Settings,
     FIGMA_BRIDGE_OT_toggle,
-    FIGMA_BRIDGE_OT_open_update_folder,
+    FIGMA_BRIDGE_OT_check_updates,
+    FIGMA_BRIDGE_OT_install_update,
     FIGMA_BRIDGE_OT_convert_all_to_mesh,
     FIGMA_BRIDGE_OT_remove_all_materials,
     FIGMA_BRIDGE_PT_panel,

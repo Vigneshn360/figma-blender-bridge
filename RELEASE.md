@@ -1,11 +1,11 @@
-# Figma to Blender Bridge 0.5.0
+# Figma to Blender Bridge 0.6.0
 
 Local release finalized on 13 July 2026.
 
 ## Included
 
 - `figma_plugin/` — Figma development plugin
-- `figma_blender_bridge-0.5.0.zip` — installable Blender extension
+- `figma_blender_bridge-0.6.0.zip` — installable Blender extension
 - `blender_extension/` — readable Blender extension source
 - `tests/` — hierarchy regression test
 - `README.md` — installation, usage, behavior, and limitations
@@ -20,11 +20,12 @@ Local release finalized on 13 July 2026.
 - Imported curves can be converted to meshes from the N-panel.
 - Material slots can be cleared from all imported objects.
 - Both panels display version information.
+- The Blender panel checks public GitHub Releases and installs validated update packages.
 
 ## Validation
 
 - JavaScript hierarchy regression test: passed
 - Blender extension Python compilation: passed
-- Blender extension archive manifest/version: verified as 0.5.0
+- Blender extension archive manifest/version: verified as 0.6.0
 
 Version 0.4.2 remains in the development folder as the pre-UI stable fallback.

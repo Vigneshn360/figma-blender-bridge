@@ -1,4 +1,4 @@
-# Figma to Blender Bridge 0.5.0 — Collection Hierarchy
+# Figma to Blender Bridge 0.6.0 — Collection Hierarchy
 
 Push selected Figma layers into Blender 5.1+ as editable curve objects over a localhost-only connection.
 
@@ -6,7 +6,7 @@ Push selected Figma layers into Blender 5.1+ as editable curve objects over a lo
 
 1. In Blender, open **Edit → Preferences → Extensions**.
 2. Use the menu in the top-right and choose **Install from Disk**.
-3. Select `figma_blender_bridge-0.5.0.zip`.
+3. Select `figma_blender_bridge-0.6.0.zip`.
 4. Enable **Figma to Blender Bridge** if it is not already enabled.
 5. In the 3D View, open the sidebar and choose the **Figma** tab. It should say it is listening.
 
@@ -27,7 +27,7 @@ Push selected Figma layers into Blender 5.1+ as editable curve objects over a lo
 
 The Blender panel controls scale, extrusion, bevel, and whether a repeated push replaces objects from the same Figma layer.
 
-The Figma panel and Blender N-panel show their version numbers. In Blender, Extrude and Bevel update all imported curves immediately. The panel also includes controls to convert all imported curves to meshes, clear their material slots, and open the installed add-on folder for updates.
+The Figma panel and Blender N-panel show their version numbers. In Blender, Extrude and Bevel update all imported curves immediately. The panel also includes controls to convert all imported curves to meshes, clear their material slots, check GitHub Releases for updates, and install an available update. Restart Blender after an update is installed.
 
 ## Current scope
 
