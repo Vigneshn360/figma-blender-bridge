@@ -1,0 +1,13 @@
+{
+  "name": "Push to Blender",
+  "id": "figma-blender-bridge-local",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["http://localhost:51982"],
+    "reasoning": "Sends selected vector artwork to the Blender extension running locally on the user's computer."
+  }
+}
