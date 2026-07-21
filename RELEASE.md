@@ -1,35 +1,27 @@
-# Figma to Blender Bridge 0.6.3
+# Figma to Blender Bridge 0.7.1
 
-Local release finalized on 14 July 2026.
+Version 0.7.1 adds editable Figma text while retaining the safe import behavior introduced in 0.7.0.
 
-## Included
+## Install files
 
-- `figma_plugin/` — Figma development plugin
-- `figma_blender_bridge-0.6.3.zip` — installable Blender extension
-- `figma_plugin-0.6.3.zip` — downloadable Figma development plugin update
-- `blender_extension/` — readable Blender extension source
-- `tests/` — hierarchy regression test
-- `README.md` — installation, usage, behavior, and limitations
+- `figma_blender_bridge-0.7.1.zip` — Blender 5.1+ extension
+- `figma_plugin-0.7.1.zip` — Figma development plugin
 
-## Verified behavior
+## Editable text
 
-- Figma page, frame, and group hierarchy is preserved as nested Blender Collections.
-- Imported artwork matches Figma rendered bounds and alignment.
-- Blender SVG scratch collections are removed automatically.
-- Re-pushing a root replaces stale descendants.
-- Extrude and Bevel update imported curves after import.
-- Imported curves can be converted to meshes from the N-panel.
-- Material slots can be cleared from all imported objects.
-- Both panels display version information.
-- The Blender panel checks public GitHub Releases and safely defers installation of validated update packages until its operator has returned.
-- Group Z Offset live-stacks distinct imported groups along the Z axis.
-- The Figma panel checks GitHub Releases and opens its packaged plugin update for download.
-- The Figma manifest uses Community Plugin ID `1658560186159240604`.
+- Uniform Figma text layers are transferred as native Blender `FONT` objects.
+- Text remains editable through Blender's normal text editing tools.
+- Transfers characters, requested font family/style, font size, horizontal and vertical alignment, line height, letter spacing, colour, opacity and rotation.
+- Searches common Windows, macOS and Linux font directories for a matching installed font.
+- Stores the requested Figma font metadata and whether a matching font was found on the Blender object.
+- Mixed-font, mixed-size, stroked and effect-heavy text automatically falls back to outlined SVG.
+- Atomic painted, masked or clipped containers remain SVG units, including any text inside them.
+- Figma reports how many text layers were editable and how many were outlined.
 
-## Validation
+## Compatibility
 
-- JavaScript hierarchy regression test: passed
-- Blender extension Python compilation: passed
-- Blender extension archive manifest/version: verified as 0.6.3
+- Blender 5.1.0 or newer
+- Figma plugin API 1.0.0
+- Bridge protocol 1 with a backward-compatible optional `kind: "text"` item
 
-Version 0.4.2 remains in the development folder as the pre-UI stable fallback.
+Versions 0.6.3 and 0.7.0 remain unchanged.
