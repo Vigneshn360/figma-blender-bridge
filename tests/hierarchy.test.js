@@ -60,18 +60,56 @@ assert.strictEqual(context.hasSelectedAncestor(leaf, new Set([frame.id, leaf.id]
 assert.strictEqual(context.hasSelectedAncestor(frame, new Set([frame.id, leaf.id])), false);
 assert.strictEqual(context.isNewerVersion("0.6.3", "0.6.2"), true);
 assert.strictEqual(context.isNewerVersion("0.6.2", "0.6.3"), false);
+assert.strictEqual(context.isNewerVersion("0.7.0", "0.6.3"), true);
+
+const editableText = node("text", "TEXT", "Heading", page, {
+  characters: "Editable heading",
+  fontName: { family: "Inter", style: "Regular" },
+  fontSize: 32,
+  fills: [{ type: "SOLID", color: { r: 1, g: 0.5, b: 0.25 }, opacity: 0.8 }],
+  textAlignHorizontal: "CENTER",
+  textAlignVertical: "TOP",
+  textAutoResize: "WIDTH_AND_HEIGHT",
+  letterSpacing: { unit: "PIXELS", value: 1 },
+  lineHeight: { unit: "PERCENT", value: 120 },
+  textCase: "ORIGINAL",
+  rotation: 0,
+  hasMissingFont: false
+});
+const editableData = context.editableTextData(editableText);
+assert.ok(editableData);
+assert.strictEqual(editableData.characters, "Editable heading");
+assert.strictEqual(editableData.fontFamily, "Inter");
+
+const mixedText = node("mixed", "TEXT", "Mixed", page, {
+  characters: "Mixed",
+  fontName: Symbol("mixed"),
+  fontSize: 32,
+  fills: [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }],
+  hasMissingFont: false
+});
+assert.strictEqual(context.editableTextData(mixedText), null);
+
+const effectFrame = node("effect", "FRAME", "Blur Card", page, {
+  children: [leaf],
+  effects: [{ type: "LAYER_BLUR", visible: true }]
+});
+const effectUnits = [];
+context.collectExportUnits(effectFrame, [{ id: "page", name: "UI Page" }], effectFrame.id, effectUnits);
+assert.strictEqual(effectUnits.length, 1);
+assert.strictEqual(effectUnits[0].node, effectFrame);
 
 context.fetch = async () => ({
   ok: true,
   json: async () => ({
-    tag_name: "v0.7.0",
-    assets: [{ name: "figma_plugin-0.7.0.zip", browser_download_url: "https://example.test/update.zip" }]
+    tag_name: "v0.8.0",
+    assets: [{ name: "figma_plugin-0.8.0.zip", browser_download_url: "https://example.test/update.zip" }]
   })
 });
 context.checkPluginUpdate().then(() => {
   const updateMessage = uiMessages.find(message => message.type === "update-status" && message.available);
   assert.ok(updateMessage);
-  assert.strictEqual(updateMessage.version, "0.7.0");
+  assert.strictEqual(updateMessage.version, "0.8.0");
   console.log("Figma hierarchy and updater tests passed");
 }).catch(error => {
   console.error(error);

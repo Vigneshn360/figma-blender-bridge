@@ -18,16 +18,21 @@
     .update { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--figma-color-border); }
     .update span { flex: 1; color: var(--figma-color-text-secondary); line-height: 1.3; }
     button { border: 0; border-radius: 6px; padding: 10px 13px; cursor: pointer; font-weight: 600; }
+    select { width: 100%; padding: 9px; border-radius: 6px; color: var(--figma-color-text); background: var(--figma-color-bg-secondary); border: 1px solid var(--figma-color-border); }
     .primary { flex: 1; color: white; background: #0d99ff; }
     .secondary { color: var(--figma-color-text); background: var(--figma-color-bg-tertiary); }
     button:disabled { opacity: .55; cursor: default; }
   </style>
 </head>
 <body>
-  <div class="heading"><h1>Push to Blender</h1><span class="version">v0.6.3</span></div>
+  <div class="heading"><h1>Push to Blender</h1><span class="version">v0.7.1</span></div>
   <p class="sub">Send selected layers with their frame and group hierarchy to Blender.</p>
   <div class="status" id="status"><strong>Checking Blender…</strong><span class="details"></span></div>
-  <label><input id="outlineText" type="checkbox" checked> Outline text for visual accuracy</label>
+  <label for="textMode">Text import</label>
+  <select id="textMode">
+    <option value="automatic" selected>Editable when supported</option>
+    <option value="outline">Always outline for accuracy</option>
+  </select>
   <div class="actions">
     <button class="secondary" id="check">Check</button>
     <button class="primary" id="push">Push selection</button>
@@ -44,7 +49,7 @@
     const downloadUpdate = document.getElementById("downloadUpdate");
     function send(pluginMessage) { parent.postMessage({ pluginMessage }, "*"); }
     document.getElementById("check").onclick = () => send({ type: "check" });
-    push.onclick = () => send({ type: "push", options: { outlineText: document.getElementById("outlineText").checked } });
+    push.onclick = () => send({ type: "push", options: { textMode: document.getElementById("textMode").value } });
     document.getElementById("checkUpdate").onclick = () => send({ type: "check-update" });
     downloadUpdate.onclick = () => send({ type: "download-update" });
     onmessage = (event) => {

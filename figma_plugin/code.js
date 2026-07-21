@@ -1,5 +1,5 @@
 const ENDPOINT = "http://localhost:51982";
-const BRIDGE_VERSION = "0.6.3";
+const BRIDGE_VERSION = "0.7.1";
 const GITHUB_LATEST_RELEASE_API = "https://api.github.com/repos/Vigneshn360/figma-blender-bridge/releases/latest";
 let figmaUpdate = null;
 
@@ -122,6 +122,54 @@ function hasSelectedAncestor(node, selectedIds) {
   return false;
 }
 
+function visibleSolidFill(fills) {
+  if (!Array.isArray(fills)) return null;
+  const visible = fills.filter(fill => fill.visible !== false && fill.opacity !== 0);
+  if (visible.length !== 1 || visible[0].type !== "SOLID") return null;
+  const fill = visible[0];
+  return {
+    r: fill.color.r,
+    g: fill.color.g,
+    b: fill.color.b,
+    a: (fill.opacity === undefined ? 1 : fill.opacity)
+  };
+}
+
+function displayedCharacters(node) {
+  const value = String(node.characters || "");
+  if (node.textCase === "UPPER") return value.toUpperCase();
+  if (node.textCase === "LOWER") return value.toLowerCase();
+  if (node.textCase === "TITLE") return value.replace(/\b\p{L}/gu, character => character.toUpperCase());
+  return value;
+}
+
+function editableTextData(node) {
+  if (node.type !== "TEXT" || node.hasMissingFont) return null;
+  if (!node.fontName || typeof node.fontName !== "object" || typeof node.fontSize !== "number") return null;
+  if (hasVisiblePaint(node.strokes) || (node.effects && node.effects.length)) return null;
+  const fill = visibleSolidFill(node.fills);
+  if (!fill) return null;
+  const letterSpacing = node.letterSpacing && typeof node.letterSpacing === "object" ? node.letterSpacing : null;
+  const lineHeight = node.lineHeight && typeof node.lineHeight === "object" ? node.lineHeight : null;
+  const transform = Array.isArray(node.absoluteTransform) ? node.absoluteTransform : null;
+  return {
+    characters: displayedCharacters(node),
+    fontFamily: String(node.fontName.family || ""),
+    fontStyle: String(node.fontName.style || "Regular"),
+    fontSize: node.fontSize,
+    textAlignHorizontal: node.textAlignHorizontal || "LEFT",
+    textAlignVertical: node.textAlignVertical || "TOP",
+    textAutoResize: node.textAutoResize || "NONE",
+    letterSpacing,
+    lineHeight,
+    rotation: typeof node.rotation === "number" ? node.rotation : 0,
+    transformX: transform ? transform[0][2] : null,
+    transformY: transform ? transform[1][2] : null,
+    opacity: typeof node.opacity === "number" ? node.opacity : 1,
+    fill
+  };
+}
+
 async function pushSelection(options) {
   const selection = figma.currentPage.selection;
   if (!selection.length) {
@@ -136,18 +184,40 @@ async function pushSelection(options) {
     const roots = selection.filter(node => !hasSelectedAncestor(node, selectedIds));
     for (const root of roots) collectExportUnits(root, collectionPath(root), root.id, units);
     const items = [];
+    let editableTextCount = 0;
+    let outlinedTextCount = 0;
     for (const unit of units) {
       const node = unit.node;
       if (typeof node.exportAsync !== "function") continue;
+      const bounds = node.absoluteRenderBounds || node.absoluteBoundingBox;
+      if (!bounds) continue;
+      const text = options.textMode !== "outline" ? editableTextData(node) : null;
+      if (text) {
+        editableTextCount += 1;
+        items.push({
+          kind: "text",
+          id: node.id,
+          rootId: unit.rootId,
+          name: node.name,
+          type: node.type,
+          collectionPath: unit.collectionPath,
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+          text
+        });
+        continue;
+      }
+      if (node.type === "TEXT") outlinedTextCount += 1;
       const svg = await node.exportAsync({
         format: "SVG_STRING",
-        svgOutlineText: options.outlineText,
+        svgOutlineText: true,
         svgIdAttribute: true,
         svgSimplifyStroke: false
       });
-      const bounds = node.absoluteRenderBounds || node.absoluteBoundingBox;
-      if (!bounds) continue;
       items.push({
+        kind: "svg",
         id: node.id,
         rootId: unit.rootId,
         name: node.name,
@@ -185,28 +255,38 @@ async function pushSelection(options) {
     });
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
-    postStatus("working", "Blender is importing the artwork…");
+    postStatus("working", "Blender is importing the artwork…", `0 of ${items.length} export units`);
     const imported = await waitForImport(requestId);
-    postStatus("success", `Imported ${imported} Blender object(s).`, "The imported objects are selected; press Home in Blender to frame them.");
+    const textSummary = `${editableTextCount} editable text, ${outlinedTextCount} outlined text`;
+    postStatus("success", `Imported ${imported} Blender object(s).`, `${textSummary}. The imported objects are selected; press Home in Blender to frame them.`);
   } catch (error) {
     postStatus("error", "Could not push to Blender.", String(error));
   }
 }
 
 async function waitForImport(requestId) {
-  for (let attempt = 0; attempt < 50; attempt++) {
+  let lastProgress = "";
+  for (let attempt = 0; attempt < 600; attempt++) {
     await new Promise(resolve => setTimeout(resolve, 100));
     const response = await fetch(`${ENDPOINT}/result/${encodeURIComponent(requestId)}`);
     const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    if (result.state === "processing") {
+      const progress = `${result.current || 0} of ${result.total || 0} export units`;
+      if (progress !== lastProgress) {
+        lastProgress = progress;
+        postStatus("working", "Blender is importing the artwork…", progress);
+      }
+    }
     if (result.state === "complete") return result.imported;
     if (result.state === "error") throw new Error(result.error || "Blender import failed");
   }
-  throw new Error("Blender did not finish the import within 5 seconds.");
+  throw new Error("Blender did not finish the import within 60 seconds.");
 }
 
 figma.ui.onmessage = async (message) => {
   if (message.type === "check") await checkConnection();
-  if (message.type === "push") await pushSelection(message.options || { outlineText: true });
+  if (message.type === "push") await pushSelection(message.options || { textMode: "automatic" });
   if (message.type === "check-update") await checkPluginUpdate();
   if (message.type === "download-update" && figmaUpdate) figma.openExternal(figmaUpdate.url);
   if (message.type === "close") figma.closePlugin();

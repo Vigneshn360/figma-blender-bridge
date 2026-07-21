@@ -1,12 +1,14 @@
-# Figma to Blender Bridge 0.6.3 — Collection Hierarchy
+# Figma to Blender Bridge 0.7.1 — Editable Text
 
 Push selected Figma layers into Blender 5.1+ as editable curve objects over a localhost-only connection.
+
+Version 0.7.1 imports supported Figma text layers as native editable Blender Text objects. Uniform text preserves characters, font request, size, alignment, spacing, colour, opacity and rotation. Mixed-style or effect-heavy text automatically falls back to outlined SVG for visual accuracy.
 
 ## Install the Blender extension
 
 1. In Blender, open **Edit → Preferences → Extensions**.
 2. Use the menu in the top-right and choose **Install from Disk**.
-3. Select `figma_blender_bridge-0.6.3.zip`.
+3. Select `figma_blender_bridge-0.7.1.zip`.
 4. Enable **Figma to Blender Bridge** if it is not already enabled.
 5. In the 3D View, open the sidebar and choose the **Figma** tab. It should say it is listening.
 
@@ -27,7 +29,7 @@ The Figma Community Plugin ID is `1658560186159240604`. Community installations 
 4. The result appears under the **Figma Bridge** collection, organized by Figma page, frame, and group.
 5. Imported objects are selected automatically. Press **Home** in Blender if they are outside the current view.
 
-The Blender panel controls scale, extrusion, bevel, and whether a repeated push replaces objects from the same Figma layer.
+The Blender panel controls scale, extrusion, bevel, and whether a repeated push replaces objects from the same Figma layer. In the Figma panel, choose **Editable when supported** or **Always outline for accuracy** under Text import.
 
 **Group Z Offset** stacks each distinct imported Figma group along Blender's Z axis. The first group remains at zero; subsequent groups use successive offset steps. The control updates existing imported curves and converted meshes immediately.
 
